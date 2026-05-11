@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Paragon · Part Match</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div id="app">
+      <header class="site-header">
+        <div class="brand-row">
+          <a
+            class="brand-mark"
+            href="https://www.runparagon.com/"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Paragon — visit runparagon.com"
+          >
+            <span class="brand-logo-frame">
+              <img
+                class="brand-logo"
+                src="assets/paragon-logo.png"
+                width="52"
+                height="52"
+                alt="Paragon"
+              />
+            </span>
+          </a>
+          <div class="brand-copy">
+            <p class="brand-kicker">
+              <a href="https://www.runparagon.com/" target="_blank" rel="noopener noreferrer">Paragon</a>
+              · Catalog match prototype
+            </p>
+            <h1 class="site-title">
+              PART <span class="title-accent">MATCH</span>
+            </h1>
+            <p class="site-tagline">
+              Map messy industrial requests to SKUs — top 3 ranked matches with explainable scores
+              and customer-history context (take-home demo).
+            </p>
+          </div>
+        </div>
+      </header>
+
+      <form id="match-form" class="match-form" novalidate>
+        <label class="field-label" for="customer-search">Customer</label>
+        <input
+          id="customer-search"
+          type="search"
+          class="input-control customer-filter"
+          placeholder="Type to filter customers…"
+          autocomplete="off"
+          aria-label="Filter customer list"
+        />
+        <select id="customer-select" class="input-control" aria-label="Selected customer">
+          <option value="">No customer selected (anonymous)</option>
+        </select>
+
+        <label class="field-label" for="query-input">Product description</label>
+        <textarea
+          id="query-input"
+          class="input-control query-input"
+          rows="6"
+          placeholder="e.g. 1/4-20 x 3/4 hex cap screw zinc"
+        ></textarea>
+
+        <button type="submit" id="match-button" class="btn-primary">Match</button>
+      </form>
+
+      <div id="parsed-row" class="parsed-row hidden" aria-live="polite"></div>
+
+      <div id="status-area" class="status-area" aria-live="polite"></div>
+
+      <div id="flags-banner" class="flags-banner"></div>
+
+      <section id="results-section" class="results-section">
+        <div id="empty-state" class="empty-state">
+          Enter a product description above to find matching SKUs.
+        </div>
+        <div id="results-list" class="results-list hidden"></div>
+      </section>
+    </div>
+
+    <script src="data.js"></script>
+    <script src="normalization.js"></script>
+    <script src="matcher.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>
