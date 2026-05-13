@@ -22,6 +22,8 @@ const ABBREV_PAIRS = [
   ['btn socket cap scr', 'button socket cap screw'],
   ['btn soc cap scr', 'button socket cap screw'],
   ['btn soc cap screw', 'button socket cap screw'],
+  ['hex bolts', 'hex cap screws'],
+  ['hex bolt', 'hex cap screw'],
   ['hex cap scr', 'hex cap screw'],
   ['hx cap scr', 'hex cap screw'],
   ['hx hd scr', 'hex cap screw'],

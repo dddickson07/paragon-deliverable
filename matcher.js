@@ -45,6 +45,49 @@ window.Matcher = (() => {
     LOW_BANNER:  0.25,   // below this → show "no strong match" warning
   };
 
+  const ROUTES = {
+    AUTO:   'auto-match',
+    REVIEW: 'review-required',
+  };
+
+  const GENERIC_TOKENS = new Set([
+    'bolt', 'bolts', 'nut', 'nuts', 'rod', 'rods', 'screw', 'screws',
+    'washer', 'washers', 'part', 'parts', 'item', 'items',
+  ]);
+
+  const UNSUPPORTED_PATTERNS = [
+    {
+      pattern: /\bgrade\s+\d+\b/i,
+      label: 'Grade',
+      message: 'Grade requested but not modeled explicitly in this prototype catalog.',
+    },
+    {
+      pattern: /\bclass\s+\d+(?:\.\d+)?\b/i,
+      label: 'Strength class',
+      message: 'Strength class requested but not modeled explicitly in this prototype catalog.',
+    },
+    {
+      pattern: /\btolerance\b/i,
+      label: 'Tolerance',
+      message: 'Tolerance requested but not encoded in the catalog attributes used for matching.',
+    },
+    {
+      pattern: /\bheat treat(?:ed|ment)?\b/i,
+      label: 'Heat treatment',
+      message: 'Heat-treatment requirements are not encoded in the catalog attributes used for matching.',
+    },
+    {
+      pattern: /\bhardness\b/i,
+      label: 'Hardness',
+      message: 'Hardness requirements are not encoded in the catalog attributes used for matching.',
+    },
+    {
+      pattern: /\broughness\b/i,
+      label: 'Surface roughness',
+      message: 'Surface roughness is outside the attributes modeled in this prototype.',
+    },
+  ];
+
   // History: customers with fewer than MIN_ORDERS → treated as new account.
   // Redundant with build.js flag but enforced here too as defensive check.
   const MIN_ORDERS = 3;
@@ -69,6 +112,23 @@ window.Matcher = (() => {
   function tokenize(text) {
     // Split on whitespace; keep hyphenated thread specs (e.g. "3/8-16", "M8-1.25") intact.
     return text.toLowerCase().split(/\s+/).filter(Boolean);
+  }
+
+  function formatList(items) {
+    const clean = [...new Set(items.filter(Boolean))];
+    if (clean.length === 0) return '';
+    if (clean.length === 1) return clean[0];
+    if (clean.length === 2) return `${clean[0]} and ${clean[1]}`;
+    return `${clean.slice(0, -1).join(', ')}, and ${clean[clean.length - 1]}`;
+  }
+
+  function formatAttrValue(key, value) {
+    if (!value) return '';
+    if (key === 'length') {
+      if (value.endsWith('mm') || value.endsWith('ft')) return value;
+      return `${value} in`;
+    }
+    return String(value);
   }
 
   // ─── BM25 INDEX ────────────────────────────────────────────────────────────
@@ -332,6 +392,242 @@ window.Matcher = (() => {
     return std.toUpperCase().replace(/\s+/g, ' ').trim();
   }
 
+  function detectUnsupportedSignals(rawQuery) {
+    const hits = [];
+    for (const rule of UNSUPPORTED_PATTERNS) {
+      const match = rawQuery.match(rule.pattern);
+      if (!match) continue;
+      hits.push({
+        label: rule.label,
+        snippet: match[0],
+        message: rule.message,
+      });
+    }
+    return hits;
+  }
+
+  function analyzeQuery(queryTokens, queryAttrs, flags, unsupportedSignals) {
+    const explicitSignals = [
+      queryAttrs.threadSpec,
+      queryAttrs.length,
+      queryAttrs.productType,
+      queryAttrs.material,
+      queryAttrs.coating,
+      queryAttrs.standard,
+    ].filter(Boolean).length;
+
+    const nonGenericTokens = queryTokens.filter((tok) => !GENERIC_TOKENS.has(tok));
+    const productOnly =
+      !!queryAttrs.productType &&
+      !queryAttrs.threadSpec &&
+      !queryAttrs.length &&
+      !queryAttrs.material &&
+      !queryAttrs.coating &&
+      !queryAttrs.standard;
+    const sparse =
+      queryTokens.length <= 1 ||
+      (productOnly && nonGenericTokens.length === 0) ||
+      (explicitSignals <= 1 && nonGenericTokens.length <= 1);
+
+    const notes = [];
+    if (sparse) {
+      notes.push('The request is underspecified for a safe one-shot match.');
+    }
+    if (flags.isMultiProduct) {
+      notes.push('The request appears to contain more than one product.');
+    }
+    if (unsupportedSignals.length) {
+      notes.push('Some requested specifications are outside the prototype attribute model.');
+    }
+
+    return {
+      explicitSignals,
+      sparse,
+      productOnly,
+      notes,
+    };
+  }
+
+  function buildHistoryComparison(scored, customerId) {
+    if (!customerId || scored.length === 0) return null;
+
+    const withHistory = [...scored].sort((a, b) => b.scores.final - a.scores.final);
+    const withoutHistory = [...scored].sort((a, b) => b.scores.baseFinal - a.scores.baseFinal);
+    const withTop = withHistory[0];
+    const withoutTop = withoutHistory[0];
+
+    if (!withTop || !withoutTop) return null;
+
+    const changedTopResult = withTop.item.sku !== withoutTop.item.sku;
+    const liftPct = Math.round(Math.max(0, withTop.scores.historyLift) * 100);
+    const summary =
+      liftPct === 0
+        ? 'Customer history did not materially change this ranking.'
+        : changedTopResult
+          ? `Customer history moved the top recommendation from ${withoutTop.item.sku} to ${withTop.item.sku}.`
+          : `Customer history reinforced ${withTop.item.sku} with a ${liftPct}-point lift.`;
+
+    return {
+      changedTopResult,
+      withHistoryTopSku: withTop.item.sku,
+      withoutHistoryTopSku: withoutTop.item.sku,
+      liftPct,
+      summary,
+    };
+  }
+
+  function buildDecision(topResult, margin, flags, queryAnalysis, unsupportedSignals) {
+    if (!topResult) {
+      return {
+        route: ROUTES.REVIEW,
+        label: 'Review Required',
+        tone: 'warn',
+        message: 'No strong match was found. Add more detail or route this request to an operator.',
+        reasons: ['The matcher could not find a strong candidate.'],
+        allowSelection: true,
+      };
+    }
+
+    const reasons = [...queryAnalysis.notes];
+    if (margin < 0.06) {
+      reasons.push('The top result is too close to the next candidate.');
+    }
+    if (topResult.scores.final < CONF.LOW_BANNER) {
+      reasons.push('The top score is too weak for a safe one-shot recommendation.');
+    }
+
+    if (
+      !flags.isReferential &&
+      !flags.isMultiProduct &&
+      !queryAnalysis.sparse &&
+      unsupportedSignals.length === 0 &&
+      topResult.scores.final >= 0.74 &&
+      margin >= 0.12
+    ) {
+      return {
+        route: ROUTES.AUTO,
+        label: 'Auto-Match',
+        tone: 'success',
+        message: 'High-confidence recommendation. Safe to proceed without manual review.',
+        reasons,
+        allowSelection: true,
+      };
+    }
+
+    if (
+      queryAnalysis.sparse ||
+      topResult.scores.final < 0.28 ||
+      (flags.isMultiProduct && topResult.scores.final < 0.55)
+    ) {
+      return {
+        route: ROUTES.REVIEW,
+        label: 'Review Required',
+        tone: 'warn',
+        message: 'This request needs more detail or operator review before ordering.',
+        reasons,
+        allowSelection: true,
+      };
+    }
+
+    return {
+      route: ROUTES.REVIEW,
+      label: 'Review Required',
+      tone: 'warn',
+      message: 'A plausible candidate exists, but an operator should review it before ordering.',
+      reasons,
+      allowSelection: true,
+    };
+  }
+
+  function buildResultExplanation(item, scores, historyBoosted, queryAttrs, isTop, margin, unsupportedSignals) {
+    const hasExplicitQueryAttrs = Object.values(queryAttrs || {}).some(Boolean);
+    const matched = [];
+    const missing = [];
+    const conflicts = [];
+
+    function compareAttr(key, label) {
+      const qVal = queryAttrs[key];
+      if (!qVal) return;
+      const itemVal = item.attrs[key];
+      if (!itemVal) {
+        missing.push(`${label} could not be verified`);
+        return;
+      }
+      if (key === 'standard') {
+        if (normalizeStd(qVal) === normalizeStd(itemVal)) {
+          matched.push(`${label} ${formatAttrValue(key, itemVal)}`);
+        } else {
+          conflicts.push(label);
+        }
+        return;
+      }
+      if (qVal === itemVal) {
+        matched.push(`${label} ${formatAttrValue(key, itemVal)}`);
+      } else {
+        conflicts.push(label);
+      }
+    }
+
+    if (queryAttrs.threadSpec) {
+      const qSpec = queryAttrs.threadSpec.toUpperCase();
+      const iSpec = (item.attrs.threadSpec || '').toUpperCase();
+      if (!iSpec) {
+        missing.push('thread spec could not be verified');
+      } else if (qSpec === iSpec) {
+        matched.push(`thread ${iSpec}`);
+      } else if (qSpec.split('-')[0] === iSpec.split('-')[0]) {
+        matched.push(`diameter ${iSpec.split('-')[0]}`);
+        missing.push('thread pitch is only partially aligned');
+      } else {
+        conflicts.push('thread spec');
+      }
+    }
+
+    compareAttr('length', 'length');
+    compareAttr('productType', 'type');
+    compareAttr('material', 'material');
+    compareAttr('coating', 'coating');
+    compareAttr('standard', 'standard');
+
+    const rationaleParts = [];
+    if (!hasExplicitQueryAttrs && historyBoosted) {
+      rationaleParts.push('Selected directly from recent customer order history.');
+    } else if (matched.length) {
+      rationaleParts.push(`Matched on ${formatList(matched)}.`);
+    } else if (scores.bm25 > 0.45) {
+      rationaleParts.push('Matched mostly on lexical overlap with the catalog description.');
+    } else {
+      rationaleParts.push('Weak structured match; this candidate is mainly a fallback suggestion.');
+    }
+
+    const historyLift = Math.round(Math.max(0, scores.historyLift) * 100);
+    if (historyBoosted && historyLift > 0) {
+      rationaleParts.push(`Customer history added ${historyLift} points of ranking lift.`);
+    }
+
+    const uncertainty = [];
+    if (missing.length) {
+      uncertainty.push(`Could not verify ${formatList(missing)}.`);
+    }
+    if (conflicts.length) {
+      uncertainty.push(`Potential conflict on ${formatList(conflicts)}.`);
+    }
+    if (unsupportedSignals.length) {
+      uncertainty.push('Some requested specs are outside the attributes modeled by this prototype.');
+    }
+    if (isTop && margin < 0.06) {
+      uncertainty.push('Top result is very close to the next candidate.');
+    }
+
+    return {
+      rationale: rationaleParts.join(' '),
+      uncertainty,
+      matched,
+      conflicts,
+      historyLift,
+    };
+  }
+
   // ─── HISTORY PRIOR ─────────────────────────────────────────────────────────
   // Returns the pre-computed recency-weighted SKU score for a candidate,
   // given the selected customer. Returns 0 if no history or below threshold.
@@ -478,7 +774,20 @@ window.Matcher = (() => {
 
         if (recent.length === 0) {
           flags.lowConfidence = true;
-          return { results: [], queryAttrs: {}, flags, margin: 0 };
+          return {
+            results: [],
+            queryAttrs: {},
+            flags,
+            margin: 0,
+            unsupportedSignals: [],
+            historyComparison: null,
+            decision: buildDecision(null, 0, flags, {
+              explicitSignals: 0,
+              sparse: true,
+              productOnly: false,
+              notes: ['Order history did not resolve to a valid catalog SKU.'],
+            }, []),
+          };
         }
 
         const ranked = recent.map((item, idx) => ({
@@ -498,13 +807,30 @@ window.Matcher = (() => {
 
         flags.lowConfidence = topScore < CONF.LOW_BANNER;
 
+        const queryAnalysis = {
+          explicitSignals: 0,
+          sparse: false,
+          productOnly: false,
+          notes: ['This recommendation is based on recent customer order history.'],
+        };
+        const topPackaged = ranked.map((s) =>
+          packageResult(s.item, s.scores, s.historyBoosted, topScore, margin, {}, [])
+        );
+
         return {
-          results: ranked.map((s) =>
-            packageResult(s.item, s.scores, s.historyBoosted, topScore, margin)
-          ),
+          results: topPackaged,
           queryAttrs: {},
           flags,
           margin,
+          unsupportedSignals: [],
+          historyComparison: {
+            changedTopResult: false,
+            withHistoryTopSku: ranked[0].item.sku,
+            withoutHistoryTopSku: ranked[0].item.sku,
+            liftPct: 100,
+            summary: 'Referential query resolved directly from recent customer order history.',
+          },
+          decision: buildDecision(topPackaged[0], margin, flags, queryAnalysis, []),
         };
       }
     }
@@ -513,6 +839,8 @@ window.Matcher = (() => {
     const normalizedQuery = normalizeText(query);
     const queryTokens     = tokenize(normalizedQuery);
     const queryAttrs      = extractQueryAttrs(normalizedQuery, query);
+    const unsupportedSignals = detectUnsupportedSignals(query);
+    const queryAnalysis = analyzeQuery(queryTokens, queryAttrs, flags, unsupportedSignals);
 
     // ── Metric / imperial pre-filter ─────────────────────────────────────
     // Metric and imperial thread systems are physically incompatible.
@@ -582,17 +910,27 @@ window.Matcher = (() => {
       const attrScore = attributeMatchScore(queryAttrs, item.attrs);
       const histScore = historyPrior(item.sku, item.attrs, queryAttrs, customerId);
       const fuzz      = fuzzyBoost[item.sku] || 0;
-
-      const final = Math.min(1,
+      const baseFinal = Math.min(1,
         bm25Norm   * WEIGHTS.bm25      +
         attrScore  * WEIGHTS.attribute +
-        histScore  * WEIGHTS.history   +
         fuzz
+      );
+
+      const final = Math.min(1,
+        baseFinal +
+        histScore  * WEIGHTS.history
       );
 
       return {
         item,
-        scores: { bm25: bm25Norm, attribute: attrScore, history: histScore, final },
+        scores: {
+          bm25: bm25Norm,
+          attribute: attrScore,
+          history: histScore,
+          baseFinal,
+          historyLift: Math.max(0, final - baseFinal),
+          final,
+        },
         historyBoosted: histScore > 0,
       };
     });
@@ -603,24 +941,56 @@ window.Matcher = (() => {
     const topScore   = top3[0]?.scores.final || 0;
     const secondScore = top3[1]?.scores.final || 0;
     const margin = topScore - secondScore;
+    const historyComparison = buildHistoryComparison(scored, customerId);
 
-    flags.lowConfidence = topScore < CONF.LOW_BANNER;
+    flags.lowConfidence = topScore < CONF.LOW_BANNER || queryAnalysis.sparse;
 
     // ── Package results ───────────────────────────────────────────────────
+    const packagedResults = top3.map((s) =>
+      packageResult(
+        s.item,
+        s.scores,
+        s.historyBoosted,
+        topScore,
+        margin,
+        queryAttrs,
+        unsupportedSignals
+      )
+    );
+    const decision = buildDecision(
+      packagedResults[0],
+      margin,
+      flags,
+      queryAnalysis,
+      unsupportedSignals
+    );
+
     return {
-      results:    top3.map(s => packageResult(s.item, s.scores, s.historyBoosted, topScore, margin)),
+      results:    packagedResults,
       queryAttrs,
       flags,
       margin,
+      unsupportedSignals,
+      historyComparison,
+      decision,
     };
   }
 
   // ─── RESULT PACKAGER ───────────────────────────────────────────────────────
 
-  function packageResult(item, scores, historyBoosted, topScore, margin) {
+  function packageResult(item, scores, historyBoosted, topScore, margin, queryAttrs, unsupportedSignals) {
     const pct    = Math.round(scores.final * 100);
     const isTop  = scores.final === topScore;
     const label  = classifyConfidence(scores.final, isTop ? margin : 0);
+    const explanation = buildResultExplanation(
+      item,
+      scores,
+      historyBoosted,
+      queryAttrs,
+      isTop,
+      margin,
+      unsupportedSignals
+    );
 
     return {
       sku:            item.sku,
@@ -632,6 +1002,11 @@ window.Matcher = (() => {
       confidenceLabel: label,
       confidencePct:   pct,
       historyBoosted:  historyBoosted || false,
+      historyContributionPct: explanation.historyLift,
+      rationale: explanation.rationale,
+      uncertainty: explanation.uncertainty,
+      matchedSignals: explanation.matched,
+      conflictingSignals: explanation.conflicts,
     };
   }
 

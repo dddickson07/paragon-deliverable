@@ -27,6 +27,8 @@ async function main() {
   const title = await page.locator(".site-title").first().textContent();
   const logo = await page.locator(".brand-logo");
   await logo.waitFor({ state: "visible" });
+  await page.locator(".result-action-btn").first().click();
+  await page.waitForSelector("#selection-panel:not(.hidden)");
 
   await page.screenshot({
     path: path.join(__dirname, "verification.png"),

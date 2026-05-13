@@ -18,12 +18,18 @@
   const matchButton = document.getElementById("match-button");
   const parsedRow = document.getElementById("parsed-row");
   const statusArea = document.getElementById("status-area");
+  const decisionPanel = document.getElementById("decision-panel");
   const flagsBanner = document.getElementById("flags-banner");
+  const advisoryPanel = document.getElementById("advisory-panel");
+  const historyPanel = document.getElementById("history-panel");
   const emptyState = document.getElementById("empty-state");
   const resultsList = document.getElementById("results-list");
+  const selectionPanel = document.getElementById("selection-panel");
 
   /** @type {{ id: string, name: string }[]} */
   let allCustomers = [];
+  let latestMatch = null;
+  let selectedSku = null;
 
   function getCustomersMap() {
     const raw = window.customers;
@@ -141,6 +147,79 @@
     }
   }
 
+  function renderDecision(decision) {
+    decisionPanel.innerHTML = "";
+    if (!decision) {
+      decisionPanel.classList.add("hidden");
+      return;
+    }
+
+    decisionPanel.className = `decision-panel decision-${decision.tone || "warn"}`;
+    const reasons = Array.isArray(decision.reasons) ? decision.reasons : [];
+    const reasonList = reasons.length
+      ? `<ul class="decision-reasons">${reasons
+          .map((reason) => `<li>${escapeHtml(reason)}</li>`)
+          .join("")}</ul>`
+      : "";
+
+    decisionPanel.innerHTML = `
+      <div class="decision-head">
+        <span class="decision-badge">${escapeHtml(decision.label || "Review")}</span>
+        <p class="decision-message">${escapeHtml(decision.message || "")}</p>
+      </div>
+      ${reasonList}
+    `;
+    decisionPanel.classList.remove("hidden");
+  }
+
+  function renderAdvisories(unsupportedSignals) {
+    advisoryPanel.innerHTML = "";
+    if (!Array.isArray(unsupportedSignals) || unsupportedSignals.length === 0) {
+      advisoryPanel.classList.add("hidden");
+      return;
+    }
+
+    advisoryPanel.innerHTML = `
+      <p class="panel-title">Unverified request details</p>
+      <ul class="panel-list">
+        ${unsupportedSignals
+          .map(
+            (item) =>
+              `<li><strong>${escapeHtml(item.label)}:</strong> ${escapeHtml(item.message)}</li>`
+          )
+          .join("")}
+      </ul>
+    `;
+    advisoryPanel.classList.remove("hidden");
+  }
+
+  function renderHistoryPanel(historyComparison) {
+    historyPanel.innerHTML = "";
+    if (!historyComparison) {
+      historyPanel.classList.add("hidden");
+      return;
+    }
+
+    const summary = historyComparison.summary || "Customer history was considered.";
+    const extra =
+      historyComparison.withoutHistoryTopSku &&
+      historyComparison.withHistoryTopSku &&
+      historyComparison.withoutHistoryTopSku !== historyComparison.withHistoryTopSku
+        ? `<p class="history-detail">Without history: ${escapeHtml(
+            historyComparison.withoutHistoryTopSku
+          )} · With history: ${escapeHtml(historyComparison.withHistoryTopSku)}</p>`
+        : historyComparison.liftPct > 0
+          ? `<p class="history-detail">Top result received a ${historyComparison.liftPct}-point boost from order history.</p>`
+          : "";
+
+    historyPanel.innerHTML = `
+      <p class="panel-title">Customer history</p>
+      <p class="history-summary">${escapeHtml(summary)}</p>
+      ${extra}
+    `;
+    historyPanel.classList.remove("hidden");
+  }
+
   function escapeHtml(s) {
     return String(s)
       .replace(/&/g, "&amp;")
@@ -186,6 +265,20 @@
       item.historyBoosted === true
         ? `<span class="tag-muted tag-history">📦 Ordered before</span>`
         : "";
+    const uncertainty =
+      Array.isArray(item.uncertainty) && item.uncertainty.length
+        ? `<ul class="card-notes">${item.uncertainty
+            .map((note) => `<li>${escapeHtml(note)}</li>`)
+            .join("")}</ul>`
+        : "";
+    const historyDetail =
+      item.historyContributionPct > 0
+        ? `<p class="result-subnote">History contribution: +${item.historyContributionPct} pts</p>`
+        : "";
+    const actionLabel =
+      latestMatch && latestMatch.decision && latestMatch.decision.route === "auto-match"
+        ? "Select SKU"
+        : "Send to review";
 
     return `
       <article class="result-card">
@@ -203,17 +296,83 @@
           ${inactive}
           ${history}
         </div>
+        <p class="result-rationale">${escapeHtml(item.rationale || "")}</p>
+        ${historyDetail}
+        ${uncertainty}
+        <div class="result-actions">
+          <button
+            type="button"
+            class="result-action-btn"
+            data-sku="${escapeHtml(item.sku || "")}"
+          >
+            ${actionLabel}
+          </button>
+        </div>
         <details class="score-details">
           <summary>Score breakdown</summary>
           <div class="score-rows">
             ${renderScoreBar("BM25 / lexical", scores.bm25 ?? 0)}
             ${renderScoreBar("Attribute fit", scores.attribute ?? 0)}
             ${renderScoreBar("History prior", scores.history ?? 0)}
+            ${renderScoreBar("Without history", scores.baseFinal ?? 0)}
             ${renderScoreBar("Final", scores.final ?? 0)}
           </div>
         </details>
       </article>
     `;
+  }
+
+  function renderSelectionPanel() {
+    selectionPanel.innerHTML = "";
+    if (!latestMatch || !selectedSku) {
+      selectionPanel.classList.add("hidden");
+      return;
+    }
+
+    const selected = (latestMatch.results || []).find((item) => item.sku === selectedSku);
+    if (!selected) {
+      selectionPanel.classList.add("hidden");
+      return;
+    }
+
+    const desc = formatDescription(selected);
+    const customerId = customerSelect.value || "Anonymous";
+    const routeLabel =
+      latestMatch.decision && latestMatch.decision.route === "auto-match"
+        ? "Ready to proceed"
+        : "Review handoff";
+
+    selectionPanel.innerHTML = `
+      <div class="selection-head">
+        <div>
+          <p class="panel-title">Selected SKU</p>
+          <h2 class="selection-sku">${escapeHtml(selected.sku)}</h2>
+          <p class="selection-desc">${escapeHtml(desc)}</p>
+        </div>
+        <span class="selection-route">${escapeHtml(routeLabel)}</span>
+      </div>
+      <p class="selection-rationale">${escapeHtml(selected.rationale || "")}</p>
+      <div class="selection-grid">
+        <div class="selection-field">
+          <span class="selection-label">Customer</span>
+          <span>${escapeHtml(customerId)}</span>
+        </div>
+        <div class="selection-field">
+          <span class="selection-label">Confidence</span>
+          <span>${escapeHtml(selected.confidenceLabel)} · ${selected.confidencePct}%</span>
+        </div>
+        <div class="selection-field">
+          <span class="selection-label">Decision</span>
+          <span>${escapeHtml(latestMatch.decision ? latestMatch.decision.label : "Review")}</span>
+        </div>
+        <div class="selection-field">
+          <span class="selection-label">Prototype next step</span>
+          <span>Mock order review handoff</span>
+        </div>
+      </div>
+      <p class="selection-note">This prototype stops at review handoff. There is no live inventory or order-submission backend yet.</p>
+    `;
+    selectionPanel.classList.remove("hidden");
   }
 
   function setLoading(isLoading) {
@@ -252,6 +411,12 @@
 
     renderParsedAttrs(null);
     renderFlags(null);
+    renderDecision(null);
+    renderAdvisories(null);
+    renderHistoryPanel(null);
+    latestMatch = null;
+    selectedSku = null;
+    renderSelectionPanel();
 
     if (!query) {
       setLoading(false);
@@ -278,14 +443,20 @@
       try {
         const result = window.Matcher.match(query, customerId);
         setLoading(false);
+        latestMatch = result;
+        selectedSku = null;
 
         renderParsedAttrs(result.queryAttrs);
         renderFlags(result.flags);
+        renderDecision(result.decision);
+        renderAdvisories(result.unsupportedSignals);
+        renderHistoryPanel(result.historyComparison);
 
         const rows = result.results || [];
         resultsList.innerHTML = rows
           .map((item, i) => renderCard(item, i + 1))
           .join("");
+        renderSelectionPanel();
       } catch (err) {
         setLoading(false);
         console.error(err);
@@ -297,12 +468,26 @@
         emptyState.textContent =
           "Enter a product description above to find matching SKUs.";
         resultsList.classList.add("hidden");
+        renderDecision(null);
+        renderAdvisories(null);
+        renderHistoryPanel(null);
+        latestMatch = null;
+        selectedSku = null;
+        renderSelectionPanel();
       }
     });
   }
 
   customerSearch.addEventListener("input", () => {
     populateCustomerSelect(customerSearch.value);
+  });
+
+  resultsList.addEventListener("click", (event) => {
+    const button = event.target.closest(".result-action-btn");
+    if (!button) return;
+    selectedSku = button.getAttribute("data-sku");
+    renderSelectionPanel();
+    selectionPanel.scrollIntoView({ behavior: "smooth", block: "start" });
   });
 
   buildCustomerList();

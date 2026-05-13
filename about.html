@@ -1,0 +1,987 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Design Process · Paragon Part Match</title>
+  <link rel="stylesheet" href="styles.css" />
+  <style>
+    /* ── LAYOUT ─────────────────────────────────── */
+    body { overflow-x: hidden; }
+
+    .sidebar {
+      position: fixed; top: 0; left: 0;
+      width: 196px; height: 100vh; overflow-y: auto;
+      padding: 20px 14px 32px;
+      background: var(--bg);
+      border-right: 3px solid var(--ink);
+      z-index: 100;
+      display: flex; flex-direction: column; gap: 2px;
+    }
+
+    .sidebar-back {
+      display: flex; align-items: center; gap: 6px;
+      padding: 9px 12px;
+      border: 2.5px solid var(--ink);
+      background: var(--ink); color: var(--card);
+      text-decoration: none;
+      font-size: 0.72rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.06em;
+      margin-bottom: 18px;
+      box-shadow: 2px 2px 0 #555;
+    }
+    .sidebar-back:hover { background: var(--card); color: var(--ink); }
+
+    .sidebar-label {
+      font-size: 0.6rem; font-weight: 700;
+      letter-spacing: 0.12em; text-transform: uppercase;
+      color: var(--muted); padding: 0 8px;
+      margin: 10px 0 4px;
+    }
+
+    .nav-link {
+      display: block; padding: 7px 10px;
+      font-size: 0.7rem; font-weight: 600;
+      text-decoration: none; color: var(--ink);
+      border: 2px solid transparent;
+      text-transform: uppercase; letter-spacing: 0.03em;
+      transition: background 0.1s, border-color 0.1s;
+    }
+    .nav-link:hover { border-color: var(--ink); background: var(--card); box-shadow: 2px 2px 0 var(--ink); }
+    .nav-link.active { border-color: var(--ink); background: var(--accent-yellow); box-shadow: 2px 2px 0 var(--ink); }
+
+    .about-content {
+      margin-left: 196px;
+      padding: 48px 48px 100px;
+      max-width: 980px;
+    }
+
+    /* ── SECTION BASE ───────────────────────────── */
+    .about-section { margin-bottom: 80px; scroll-margin-top: 28px; }
+
+    .eyebrow {
+      font-size: 0.62rem; font-weight: 700;
+      letter-spacing: 0.14em; text-transform: uppercase;
+      color: var(--muted); margin-bottom: 6px;
+    }
+
+    .s-heading {
+      font-size: clamp(1.25rem, 2.5vw, 1.6rem);
+      font-weight: 700; letter-spacing: 0.04em;
+      text-transform: uppercase; margin: 0 0 8px; line-height: 1.15;
+    }
+    .s-heading .hl { background: var(--accent-yellow); padding: 0 0.1em; }
+
+    .s-lede {
+      font-size: 0.95rem; color: var(--muted);
+      max-width: 58ch; margin: 0 0 28px; line-height: 1.6;
+    }
+
+    /* ── SHARED CARD ────────────────────────────── */
+    .card {
+      border: 2.5px solid var(--ink);
+      background: var(--card);
+      box-shadow: 3px 3px 0 var(--ink);
+      padding: 14px 16px;
+    }
+    .card.yellow { background: var(--accent-yellow); }
+    .card.green  { background: #dcfce7; }
+    .card.amber  { background: #fff6df; }
+    .card.cream  { background: var(--bg); }
+
+    /* ── 1. PROBLEM ─────────────────────────────── */
+    .problem-flow {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr auto 1fr;
+      gap: 0; align-items: stretch;
+      margin-bottom: 20px;
+    }
+    .pf-node {
+      border: 3px solid var(--ink);
+      background: var(--card);
+      padding: 16px 18px;
+      box-shadow: 4px 4px 0 var(--ink);
+    }
+    .pf-node.unknown {
+      background: #fff6df;
+      border-style: dashed;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      text-align: center;
+    }
+    .pf-label { font-size: 0.62rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-bottom: 5px; }
+    .pf-value { font-size: 0.82rem; font-weight: 600; font-family: monospace; line-height: 1.5; }
+    .pf-arrow { display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: 900; padding: 0 10px; }
+    .pf-q { font-size: 2rem; font-weight: 900; line-height: 1; color: var(--ink); }
+    .pf-sub { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin-top: 4px; }
+
+    .insight {
+      border: 3px solid var(--ink);
+      background: var(--accent-yellow);
+      padding: 16px 20px;
+      box-shadow: 4px 4px 0 var(--ink);
+    }
+    .insight-kicker { font-size: 0.62rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 6px; }
+    .insight-body { font-size: 0.95rem; font-weight: 600; line-height: 1.55; }
+
+    /* ── 2. QUESTIONS ───────────────────────────── */
+    .q-cols { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+
+    .q-group { display: flex; flex-direction: column; gap: 8px; }
+
+    .q-group-header {
+      font-size: 0.65rem; font-weight: 700;
+      letter-spacing: 0.1em; text-transform: uppercase;
+      padding: 6px 12px;
+      background: var(--ink); color: var(--card);
+      display: block;
+    }
+
+    .q-item {
+      border: 2px solid var(--ink);
+      background: var(--card);
+      padding: 10px 12px;
+      font-size: 0.82rem; line-height: 1.5;
+      box-shadow: 2px 2px 0 var(--ink);
+    }
+    .q-item::before { content: "?"; font-weight: 900; margin-right: 6px; color: var(--muted); }
+
+    /* ── 3. EDGE CASES ──────────────────────────── */
+    .ec-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+
+    .ec-col-head {
+      font-size: 0.65rem; font-weight: 700;
+      letter-spacing: 0.1em; text-transform: uppercase;
+      padding: 6px 12px; margin-bottom: 10px;
+      background: var(--ink); color: var(--card);
+    }
+    .ec-col-head.v2 { background: #333; }
+
+    .ec-item {
+      border: 2px solid var(--ink);
+      background: var(--card);
+      padding: 10px 12px; margin-bottom: 8px;
+      box-shadow: 2px 2px 0 var(--ink);
+    }
+    .ec-name { font-weight: 700; font-size: 0.8rem; margin-bottom: 3px; }
+    .ec-desc { font-size: 0.73rem; color: var(--muted); line-height: 1.4; }
+
+    /* ── 4. ALGORITHM ───────────────────────────── */
+    .algo-table { width: 100%; border-collapse: collapse; border: 3px solid var(--ink); box-shadow: 4px 4px 0 var(--ink); }
+    .algo-table th, .algo-table td { border: 2px solid var(--ink); padding: 10px 13px; font-size: 0.8rem; text-align: left; vertical-align: middle; }
+    .algo-table thead th { background: var(--ink); color: var(--card); font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; font-size: 0.7rem; }
+    .algo-table thead th.win { background: #22c55e; color: var(--ink); }
+    .algo-table tbody td.win { background: #dcfce7; font-weight: 600; }
+    .algo-table tbody td.fade { color: #999; }
+    .tick { color: #16a34a; font-weight: 900; }
+    .cross { color: #dc2626; }
+    .half { color: #d97706; }
+
+    .two-layer {
+      display: grid; grid-template-columns: 1fr auto 1fr;
+      gap: 0; align-items: center; margin-top: 20px;
+    }
+    .layer-box {
+      border: 3px solid var(--ink); background: var(--card);
+      padding: 16px 18px; box-shadow: 4px 4px 0 var(--ink);
+    }
+    .layer-box.r { background: #dcfce7; }
+    .layer-title { font-weight: 700; font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px; }
+    .layer-desc { font-size: 0.78rem; color: var(--muted); line-height: 1.5; }
+    .layer-tags { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
+    .ltag { font-size: 0.65rem; font-weight: 600; padding: 2px 7px; border: 1.5px solid var(--ink); background: var(--bg); font-family: monospace; }
+    .layer-arrow { font-size: 1.6rem; font-weight: 900; padding: 0 14px; }
+
+    /* ── 5. PRINCIPLES ──────────────────────────── */
+    .principles-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+
+    .p-card {
+      border: 2.5px solid var(--ink); background: var(--card);
+      padding: 14px 16px; box-shadow: 3px 3px 0 var(--ink);
+    }
+    .p-num { font-size: 0.6rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
+    .p-title { font-weight: 700; font-size: 0.88rem; margin-bottom: 4px; }
+    .p-desc { font-size: 0.76rem; color: var(--muted); line-height: 1.5; }
+
+    /* ── 6. DECISIONS ───────────────────────────── */
+    .d-cards { display: flex; flex-direction: column; gap: 10px; }
+
+    .d-card { border: 2.5px solid var(--ink); background: var(--card); box-shadow: 3px 3px 0 var(--ink); overflow: hidden; }
+
+    .d-q {
+      background: #f0f0f0; border-bottom: 2px solid var(--ink);
+      padding: 9px 14px; font-size: 0.75rem; font-weight: 700;
+      font-family: monospace; text-transform: uppercase; letter-spacing: 0.04em;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .d-q-badge { background: var(--ink); color: var(--card); font-size: 0.6rem; padding: 2px 6px; font-weight: 700; letter-spacing: 0.06em; flex-shrink: 0; }
+    .d-a { padding: 12px 14px; font-size: 0.85rem; line-height: 1.55; }
+    .d-a strong { font-weight: 700; }
+
+    /* ── 7. PIPELINE (embedded) ─────────────────── */
+    .pl-wrap {
+      border: 3px solid var(--ink); box-shadow: 4px 4px 0 var(--ink);
+      background: var(--bg); padding: 24px 20px;
+    }
+
+    .pl-two-col { display: flex; gap: 24px; align-items: flex-start; }
+    .pl-build { flex: 0 0 190px; display: flex; flex-direction: column; }
+    .pl-runtime { flex: 1; display: flex; flex-direction: column; }
+
+    .pl-col-hd {
+      font-size: 0.62rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+      padding: 5px 10px; background: var(--ink); color: var(--accent-yellow);
+      margin-bottom: 12px; display: block; width: 100%;
+    }
+
+    .pl-box { width: 100%; border: 2.5px solid var(--ink); background: #fff; padding: 9px 11px; box-shadow: 2px 2px 0 var(--ink); }
+    .pl-box.yl { background: var(--accent-yellow); }
+    .pl-box.gn { background: #dcfce7; }
+    .pl-box.am { background: #fff6df; }
+    .pl-box.cr { background: var(--bg); border-style: dashed; box-shadow: none; }
+    .pl-bt { font-weight: 700; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 2px; }
+    .pl-bd { font-size: 0.68rem; color: #444; line-height: 1.4; }
+    .pl-tags { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 5px; }
+    .pl-tag { font-size: 0.6rem; font-weight: 600; padding: 1px 5px; border: 1.5px solid #000; background: #F5F0E8; font-family: monospace; white-space: nowrap; }
+    .pl-tag.g { background: #dcfce7; }
+    .pl-tag.y { background: #fef9c3; }
+    .pl-tag.r { background: #fee2e2; }
+
+    .pl-b-arrow { text-align: center; font-size: 0.9rem; font-weight: 700; color: #000; margin: 4px 0; display: block; }
+
+    .pl-stage { display: flex; gap: 8px; align-items: flex-start; width: 100%; }
+    .pl-num {
+      flex-shrink: 0; width: 30px; height: 30px;
+      border: 2.5px solid var(--ink); background: #fff;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 0.76rem; margin-top: 1px;
+    }
+    .pl-num.y { background: var(--accent-yellow); }
+    .pl-num.d { background: var(--ink); color: var(--accent-yellow); }
+
+    .pl-arrow { display: flex; gap: 8px; align-items: center; margin: 3px 0; }
+    .pl-arrow-badge { flex-shrink: 0; width: 30px; text-align: center; font-size: 0.9rem; font-weight: 700; color: var(--ink); }
+    .pl-arrow-spacer { flex: 1; }
+
+    .pl-score {
+      margin-top: 16px; border: 2.5px solid var(--ink);
+      background: #fff; box-shadow: 3px 3px 0 var(--ink); padding: 12px 14px;
+    }
+    .pl-score-hd { font-size: 0.65rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; border-bottom: 2px solid var(--ink); padding-bottom: 7px; margin-bottom: 10px; }
+    .pl-w-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+    .pl-w-name { font-size: 0.68rem; font-weight: 700; font-family: monospace; width: 100px; flex-shrink: 0; }
+    .pl-w-track { flex: 1; height: 11px; border: 2px solid var(--ink); background: var(--bg); overflow: hidden; }
+    .pl-w-fill { height: 100%; background: var(--ink); }
+    .pl-w-pct { font-size: 0.65rem; font-weight: 700; font-family: monospace; width: 28px; text-align: right; flex-shrink: 0; }
+    .pl-conf-row { display: flex; gap: 6px; margin-top: 10px; }
+    .pl-conf { flex: 1; border: 2px solid var(--ink); padding: 6px 8px; }
+    .pl-conf .label { font-size: 0.62rem; font-weight: 700; text-transform: uppercase; margin-bottom: 2px; }
+    .pl-conf .rule { font-size: 0.6rem; font-family: monospace; color: #333; line-height: 1.4; }
+    .pl-c-h { background: #dcfce7; }
+    .pl-c-m { background: #fef3c7; }
+    .pl-c-l { background: #fee2e2; }
+
+    /* ── 8. AI USAGE ────────────────────────────── */
+    .ai-flow { display: flex; align-items: flex-start; gap: 0; overflow-x: auto; padding-bottom: 4px; }
+
+    .ai-phase { display: flex; flex-direction: column; align-items: center; flex: 1; min-width: 90px; }
+
+    .ai-phase-top { display: flex; align-items: center; width: 100%; }
+    .ai-dot {
+      flex-shrink: 0; width: 38px; height: 38px;
+      border: 3px solid var(--ink);
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 0.75rem;
+      z-index: 1; background: #fff;
+    }
+    .ai-dot.you   { background: var(--accent-yellow); }
+    .ai-dot.cl    { background: #dbeafe; }
+    .ai-dot.cur   { background: #f3e8ff; }
+    .ai-dot.cdx   { background: #dcfce7; }
+    .ai-dot.man   { background: #fff; }
+
+    .ai-connector { flex: 1; height: 3px; background: var(--ink); margin-top: 17px; }
+    .ai-phase:last-child .ai-connector { display: none; }
+
+    .ai-body { margin-top: 10px; padding: 0 4px; width: 100%; }
+    .ai-tool-badge {
+      font-size: 0.6rem; font-weight: 700; letter-spacing: 0.07em;
+      text-transform: uppercase; padding: 2px 6px;
+      border: 1.5px solid var(--ink); display: inline-block;
+      margin-bottom: 4px; background: var(--bg);
+    }
+    .ai-phase-title { font-size: 0.75rem; font-weight: 700; margin-bottom: 4px; }
+    .ai-phase-desc { font-size: 0.72rem; color: var(--muted); line-height: 1.45; }
+
+    /* ── 9. REFINEMENTS ─────────────────────────── */
+    .ref-list { display: flex; flex-direction: column; gap: 10px; }
+
+    .ref-item { border: 2.5px solid var(--ink); background: var(--card); box-shadow: 3px 3px 0 var(--ink); overflow: hidden; }
+
+    .ref-header { display: flex; align-items: stretch; }
+    .ref-badge { padding: 10px 13px; background: var(--ink); color: var(--card); font-size: 0.62rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; flex-shrink: 0; display: flex; align-items: center; }
+    .ref-title { padding: 10px 14px; font-weight: 700; font-size: 0.84rem; border-left: 2px solid var(--ink); flex: 1; display: flex; align-items: center; }
+    .ref-body { padding: 10px 14px; font-size: 0.82rem; color: var(--muted); border-top: 2px solid var(--ink); line-height: 1.5; }
+
+    /* ── 10. TRADEOFFS ──────────────────────────── */
+    .tradeoff-split { display: grid; grid-template-columns: 1fr 1fr; border: 3px solid var(--ink); box-shadow: 4px 4px 0 var(--ink); }
+    .tc-head { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; padding: 10px 14px; border-bottom: 2px solid var(--ink); }
+    .tc-head.left { background: #fff6df; border-right: 2px solid var(--ink); }
+    .tc-head.right { background: #dcfce7; }
+    .tc-body { padding: 14px; }
+    .tc-body.left { border-right: 2px solid var(--ink); }
+    .tc-row { display: flex; gap: 8px; align-items: flex-start; margin-bottom: 10px; font-size: 0.82rem; line-height: 1.45; }
+    .tc-icon { flex-shrink: 0; margin-top: 1px; }
+
+    /* ── RESPONSIVE ─────────────────────────────── */
+    @media (max-width: 900px) {
+      .sidebar { display: none; }
+      .about-content { margin-left: 0; padding: 24px 16px 60px; }
+      .q-cols, .ec-grid, .principles-grid, .tradeoff-split { grid-template-columns: 1fr; }
+      .problem-flow { grid-template-columns: 1fr; gap: 8px; }
+      .pf-arrow { transform: rotate(90deg); }
+      .two-layer { grid-template-columns: 1fr; }
+      .layer-arrow { transform: rotate(90deg); text-align: center; }
+      .ai-flow { flex-direction: column; align-items: flex-start; gap: 16px; }
+      .ai-connector { display: none; }
+      .pl-two-col { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── STICKY SIDEBAR ───────────────────────────── -->
+<nav class="sidebar" aria-label="Page sections">
+  <a class="sidebar-back" href="index.html">← Demo</a>
+
+  <span class="sidebar-label">Process</span>
+  <a class="nav-link" href="#problem">The Problem</a>
+  <a class="nav-link" href="#questions">Questions First</a>
+  <a class="nav-link" href="#edge-cases">Edge Cases</a>
+  <a class="nav-link" href="#algorithm">Algorithm</a>
+
+  <span class="sidebar-label">Design</span>
+  <a class="nav-link" href="#principles">Principles</a>
+  <a class="nav-link" href="#decisions">Key Decisions</a>
+
+  <span class="sidebar-label">Build</span>
+  <a class="nav-link" href="#pipeline">Pipeline</a>
+  <a class="nav-link" href="#ai-usage">How AI Was Used</a>
+  <a class="nav-link" href="#refinements">Refinements</a>
+  <a class="nav-link" href="#tradeoffs">Tradeoffs</a>
+</nav>
+
+<!-- ── MAIN CONTENT ─────────────────────────────── -->
+<main class="about-content">
+
+  <!-- PAGE HEADER -->
+  <header style="margin-bottom: 64px;">
+    <p class="eyebrow">Paragon · Catalog Match Take-Home</p>
+    <h1 class="s-heading" style="font-size: clamp(1.6rem, 3vw, 2.2rem);">DESIGN <span class="hl">PROCESS</span></h1>
+    <p class="s-lede">How I thought through the problem, the decisions I made along the way, and how I used AI to build it — from first principles to shipped prototype.</p>
+  </header>
+
+
+  <!-- ── 1. THE PROBLEM ─────────────────────────── -->
+  <section class="about-section" id="problem">
+    <p class="eyebrow">01 — Problem framing</p>
+    <h2 class="s-heading">THE <span class="hl">PROBLEM</span></h2>
+    <p class="s-lede">Before writing a single line of code, I needed to understand what made this genuinely hard — not just "match two strings" hard.</p>
+
+    <div class="problem-flow">
+      <div class="pf-node">
+        <div class="pf-label">Customer request</div>
+        <div class="pf-value">"SHCS 7/16 x 2-1/2 alloy"<br>"same washers as last time"<br>"M8 bolt zinc 500 pcs"</div>
+      </div>
+      <div class="pf-arrow">→</div>
+      <div class="pf-node unknown">
+        <div class="pf-q">?</div>
+        <div class="pf-sub">free text → free text</div>
+      </div>
+      <div class="pf-arrow">→</div>
+      <div class="pf-node">
+        <div class="pf-label">Catalog description</div>
+        <div class="pf-value">"HX HD SCR 7/16-14X2-1/2 A GR5 ZN"<br>"FLT WSHR 1/2 SS 18-8"<br>"HX HD SCR M8-1.25X20 A SS316"</div>
+      </div>
+    </div>
+
+    <div class="insight" style="margin-top: 16px;">
+      <div class="insight-kicker">Key insight</div>
+      <div class="insight-body">Both sides are free text. This is not a query-against-structured-database problem. Structure must be derived from the descriptions, not assumed to exist. That changes everything about the approach.</div>
+    </div>
+  </section>
+
+
+  <!-- ── 2. QUESTIONS FIRST ─────────────────────── -->
+  <section class="about-section" id="questions">
+    <p class="eyebrow">02 — Before writing code</p>
+    <h2 class="s-heading">QUESTIONS <span class="hl">FIRST</span></h2>
+    <p class="s-lede">I wrote out the questions that needed answers before any design decision could be made. These drove everything that followed.</p>
+
+    <div class="q-cols">
+      <div class="q-group">
+        <span class="q-group-header">On matching</span>
+        <div class="q-item">How do we reliably match one piece of free-form text against another?</div>
+        <div class="q-item">How do we handle abbreviations and shorthand that differ between query and catalog?</div>
+        <div class="q-item">What happens when the description doesn't fully specify all the relevant attributes?</div>
+        <div class="q-item">What happens when it references attributes that aren't in the catalog at all?</div>
+      </div>
+
+      <div class="q-group">
+        <span class="q-group-header">On confidence</span>
+        <div class="q-item">What is the right algorithm for a confidence score in this domain?</div>
+        <div class="q-item">How should the score behave under vague input, abbreviations, or missing attributes?</div>
+        <div class="q-item">What does a high-confidence match look like versus a coin-flip between two candidates?</div>
+        <div class="q-item">Should low confidence block a recommendation or just surface a warning?</div>
+      </div>
+
+      <div class="q-group">
+        <span class="q-group-header">On system design</span>
+        <div class="q-item">What does clean separation between the data layer, matching logic, and UI actually look like in practice?</div>
+        <div class="q-item">Should there be a minimum description length before a match is attempted?</div>
+        <div class="q-item">Lexical vs. semantic — what are the real tradeoffs for this specific domain?</div>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ── 3. EDGE CASES ──────────────────────────── -->
+  <section class="about-section" id="edge-cases">
+    <p class="eyebrow">03 — Thinking through failure modes</p>
+    <h2 class="s-heading">EDGE <span class="hl">CASES</span></h2>
+    <p class="s-lede">I identified these in two passes — first the obvious ones, then a second round that came from actually reading the catalog data carefully.</p>
+
+    <div class="ec-grid">
+      <div>
+        <div class="ec-col-head">Pass 1 — Obvious from the brief</div>
+        <div class="ec-item">
+          <div class="ec-name">Abbreviations &amp; shorthand</div>
+          <div class="ec-desc">Customer writes "SHCS 7/16 x 2-1/2" — catalog has "SKT HD CAP SCR 7/16-14X2-1/2". Normalization must go both ways.</div>
+        </div>
+        <div class="ec-item">
+          <div class="ec-name">Near-identical SKUs</div>
+          <div class="ec-desc">Multiple items that differ only by coating, length, or standard. The right answer depends on which variant the customer actually needs.</div>
+        </div>
+        <div class="ec-item">
+          <div class="ec-name">Vague / sparse descriptions</div>
+          <div class="ec-desc">"Washer" or "bolt" could match dozens of SKUs. Score should visibly collapse — not pretend certainty.</div>
+        </div>
+        <div class="ec-item">
+          <div class="ec-name">Attributes not in the catalog</div>
+          <div class="ec-desc">Customer asks for grade 8, tolerance class, or surface roughness. No SKU can verify this — surface the gap rather than ignore it.</div>
+        </div>
+        <div class="ec-item">
+          <div class="ec-name">Confidence score sensitivity</div>
+          <div class="ec-desc">Same numeric score means different things for rich vs. sparse queries. Score separation from #2 matters as much as the raw score.</div>
+        </div>
+      </div>
+
+      <div>
+        <div class="ec-col-head v2">Pass 2 — Found in the data</div>
+        <div class="ec-item">
+          <div class="ec-name">Quantity contamination</div>
+          <div class="ec-desc">"Need 500 M8 hex nuts" — strip leading counts before matching or BM25 will penalize the query.</div>
+        </div>
+        <div class="ec-item">
+          <div class="ec-name">Multi-product queries</div>
+          <div class="ec-desc">"M8 nuts and washers" — detect and warn rather than silently returning one confused best match.</div>
+        </div>
+        <div class="ec-item">
+          <div class="ec-name">Referential queries</div>
+          <div class="ec-desc">"Same as last time" — pure order-history lookup when a customer is selected. No matching needed.</div>
+        </div>
+        <div class="ec-item">
+          <div class="ec-name">Metric vs. imperial collision</div>
+          <div class="ec-desc">M8 and 5/16-18 should never cross-match. These are completely separate namespaces. Hard filter, not just a penalty.</div>
+        </div>
+        <div class="ec-item">
+          <div class="ec-name">Misspellings</div>
+          <div class="ec-desc">"sockt head cap scrw" — Levenshtein fallback when BM25 retrieval is weak. Budget-capped to avoid pathological cost.</div>
+        </div>
+        <div class="ec-item">
+          <div class="ec-name">Mixed units in one query</div>
+          <div class="ec-desc">"M8 screw 1 inch long" — metric thread spec + imperial length. Parse thread and length independently.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ── 4. ALGORITHM ───────────────────────────── -->
+  <section class="about-section" id="algorithm">
+    <p class="eyebrow">04 — Picking an approach</p>
+    <h2 class="s-heading">ALGORITHM <span class="hl">DECISION</span></h2>
+    <p class="s-lede">Three realistic options. I chose the one that was fastest to be right about, not the most technically impressive.</p>
+
+    <table class="algo-table">
+      <thead>
+        <tr>
+          <th>Criterion</th>
+          <th>LLM embedding</th>
+          <th>Semantic search (RAG)</th>
+          <th class="win">BM25 + attribute rerank ✓</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Works offline / in-browser</td>
+          <td class="fade"><span class="cross">✗</span> Needs API</td>
+          <td class="fade"><span class="cross">✗</span> Needs server</td>
+          <td class="win"><span class="tick">✓</span> Fully static</td>
+        </tr>
+        <tr>
+          <td>Handles abbreviation expansion</td>
+          <td><span class="half">~</span> Sometimes</td>
+          <td><span class="half">~</span> Sometimes</td>
+          <td class="win"><span class="tick">✓</span> Deterministic via normalization dict</td>
+        </tr>
+        <tr>
+          <td>Score is explainable</td>
+          <td class="fade"><span class="cross">✗</span> Black box</td>
+          <td class="fade"><span class="cross">✗</span> Cosine similarity only</td>
+          <td class="win"><span class="tick">✓</span> BM25 + attribute + history shown per result</td>
+        </tr>
+        <tr>
+          <td>Metric vs. imperial separation</td>
+          <td class="fade"><span class="cross">✗</span> Model decides</td>
+          <td class="fade"><span class="cross">✗</span> Depends on training</td>
+          <td class="win"><span class="tick">✓</span> Hard pre-filter, guaranteed</td>
+        </tr>
+        <tr>
+          <td>Confidence is meaningful</td>
+          <td class="fade"><span class="half">~</span> Softmax scores</td>
+          <td class="fade"><span class="half">~</span> Distance only</td>
+          <td class="win"><span class="tick">✓</span> Score + margin from #2</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="two-layer" style="margin-top: 24px;">
+      <div class="layer-box">
+        <div class="layer-title">Layer 1 — Retrieval</div>
+        <div class="layer-desc">BM25 over the metric or imperial pool. Returns top 15 candidates fast. Good enough to surface the right answer; not precise enough alone.</div>
+        <div class="layer-tags">
+          <span class="ltag">BM25 k1=1.5 b=0.75</span>
+          <span class="ltag">filtered pool</span>
+          <span class="ltag">top 15</span>
+        </div>
+      </div>
+      <div class="layer-arrow">→</div>
+      <div class="layer-box r">
+        <div class="layer-title">Layer 2 — Rerank</div>
+        <div class="layer-desc">Weighted score across BM25, structured attribute fit, and customer history prior. Hard disqualifier for explicit type conflicts.</div>
+        <div class="layer-tags">
+          <span class="ltag">bm25 45%</span>
+          <span class="ltag">attribute 35%</span>
+          <span class="ltag">history 15%</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ── 5. PRINCIPLES ──────────────────────────── -->
+  <section class="about-section" id="principles">
+    <p class="eyebrow">05 — Before writing the matcher</p>
+    <h2 class="s-heading">DESIGN <span class="hl">PRINCIPLES</span></h2>
+    <p class="s-lede">These were the constraints I set before touching the scorer. If a design decision violated one of these, I went back and reconsidered.</p>
+
+    <div class="principles-grid">
+      <div class="p-card">
+        <div class="p-num">Principle 01</div>
+        <div class="p-title">Precision over throughput</div>
+        <div class="p-desc">Never pretend certainty when score separation is weak. A wrong auto-match is worse than routing to review.</div>
+      </div>
+      <div class="p-card" style="background: var(--accent-yellow);">
+        <div class="p-num">Principle 02</div>
+        <div class="p-title">Human review is part of the system</div>
+        <div class="p-desc">Review Required is not a failure mode — it's a product decision. Some queries should escalate to a human by design.</div>
+      </div>
+      <div class="p-card">
+        <div class="p-num">Principle 03</div>
+        <div class="p-title">Explainability built in</div>
+        <div class="p-desc">Every result shows score components, a rationale, and what the system could not verify. No black boxes for operators.</div>
+      </div>
+      <div class="p-card">
+        <div class="p-num">Principle 04</div>
+        <div class="p-title">History is a prior, not a override</div>
+        <div class="p-desc">Customer order history fills silence. It never overrides an explicit attribute in the current query. The user's words win.</div>
+      </div>
+      <div class="p-card">
+        <div class="p-num">Principle 05</div>
+        <div class="p-title">Normalize before matching</div>
+        <div class="p-desc">Token alignment between query and catalog index must be guaranteed. One shared normalization module — no drift.</div>
+      </div>
+      <div class="p-card">
+        <div class="p-num">Principle 06</div>
+        <div class="p-title">Metric and imperial never cross</div>
+        <div class="p-desc">These are separate namespaces. Hard pre-filter, not a soft penalty. An M8 and a 5/16 should never be compared.</div>
+      </div>
+      <div class="p-card" style="grid-column: 1 / -1; background: #dcfce7;">
+        <div class="p-num">Principle 07</div>
+        <div class="p-title">Clean layer separation</div>
+        <div class="p-desc">build.js generates data. normalization.js normalizes — used by both build and browser. matcher.js scores — no DOM. app.js renders — no scoring. Four files, four jobs, no overlap.</div>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ── 6. KEY DECISIONS ───────────────────────── -->
+  <section class="about-section" id="decisions">
+    <p class="eyebrow">06 — The calls that shaped the system</p>
+    <h2 class="s-heading">KEY <span class="hl">DECISIONS</span></h2>
+    <p class="s-lede">Each of these was a real fork in the road. Here's the question I faced and the answer I landed on.</p>
+
+    <div class="d-cards">
+      <div class="d-card">
+        <div class="d-q"><span class="d-q-badge">Decision A</span> When the query says "zinc" but the customer's history is full of stainless — which wins?</div>
+        <div class="d-a"><strong>Query wins, always.</strong> History is a prior for filling gaps, not a signal to override what the user explicitly typed. If someone writes "zinc coating," that's the intent — history suggesting stainless gets suppressed on that attribute entirely.</div>
+      </div>
+      <div class="d-card">
+        <div class="d-q"><span class="d-q-badge">Decision B</span> How much weight should a customer's order history carry when they've only bought 2 things?</div>
+        <div class="d-a"><strong>None.</strong> Below 3 orders, I treat the customer as a new account and apply zero history prior. Two data points isn't a pattern — applying it would add noise, not signal. The threshold is enforced at both build time and runtime.</div>
+      </div>
+      <div class="d-card">
+        <div class="d-q"><span class="d-q-badge">Decision C</span> Should low-confidence queries be blocked or should results always be returned?</div>
+        <div class="d-a"><strong>Always return top 3, but route to Review Required.</strong> Blocking produces nothing useful. Returning results with a clear Review Required decision and an honest confidence score lets the operator see the candidates and make the call. Pretending low confidence = no answer is the wrong tradeoff.</div>
+      </div>
+      <div class="d-card">
+        <div class="d-q"><span class="d-q-badge">Decision D</span> What happens when the user asks for grade 8 or a specific tolerance and nothing in the catalog has that field?</div>
+        <div class="d-a"><strong>Match on what we can, surface what we can't verify.</strong> The matcher still returns the best candidates on the attributes it does understand. An "Unverified request details" panel explicitly calls out that grade, tolerance, and heat treatment are not encoded in the catalog — so the operator knows the match is incomplete, not wrong.</div>
+      </div>
+      <div class="d-card">
+        <div class="d-q"><span class="d-q-badge">Decision E</span> Should inactive / discontinued SKUs be excluded from results?</div>
+        <div class="d-a"><strong>No — include them, but label clearly.</strong> Excluding them silently could hide the best technical match and leave the operator confused about why nothing came back. Better to surface the match with a visible "⚠ Inactive SKU" tag and let the operator decide what to do with it.</div>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ── 7. PIPELINE ────────────────────────────── -->
+  <section class="about-section" id="pipeline">
+    <p class="eyebrow">07 — What the system became</p>
+    <h2 class="s-heading">THE <span class="hl">PIPELINE</span></h2>
+    <p class="s-lede">Every query runs through these 8 stages. Build-time preprocessing runs once and generates the data layer everything else depends on.</p>
+
+    <div class="pl-wrap">
+      <div class="pl-two-col">
+
+        <!-- Build column -->
+        <div class="pl-build">
+          <span class="pl-col-hd">Build time · run once</span>
+          <div class="pl-box"><div class="pl-bt">catalog.csv</div><div class="pl-bd">1,000 SKUs · raw descriptions</div></div>
+          <span class="pl-b-arrow">▼</span>
+          <div class="pl-box"><div class="pl-bt">order_history.csv</div><div class="pl-bd">77 rows · 5 customers</div></div>
+          <span class="pl-b-arrow">▼</span>
+          <div class="pl-box"><div class="pl-bt">build.js</div><div class="pl-bd">Parse attrs · normalize · recency-weight orders</div></div>
+          <span class="pl-b-arrow">▼</span>
+          <div class="pl-box yl"><div class="pl-bt">data.js · 680 KB</div><div class="pl-bd">window.catalog (1,000)<br>window.customers (5)</div></div>
+          <div style="font-size:0.63rem;font-weight:700;font-family:monospace;color:#555;text-align:center;margin-top:10px;padding:4px 8px;border:1.5px dashed #888;background:#fff;">
+            loaded by browser<br>feeds BM25 index at startup
+          </div>
+        </div>
+
+        <!-- Runtime column -->
+        <div class="pl-runtime">
+          <span class="pl-col-hd">Runtime · per query</span>
+
+          <div class="pl-stage">
+            <div class="pl-num y">1</div>
+            <div class="pl-box" style="flex:1">
+              <div class="pl-bt">Input</div>
+              <div class="pl-bd">Free-text query + optional customer ID</div>
+              <div class="pl-tags"><span class="pl-tag">query: string</span><span class="pl-tag">customerId: string | null</span></div>
+            </div>
+          </div>
+          <div class="pl-arrow"><div class="pl-arrow-badge">▼</div><div class="pl-arrow-spacer"></div></div>
+
+          <div class="pl-stage">
+            <div class="pl-num">2</div>
+            <div class="pl-box am" style="flex:1">
+              <div class="pl-bt">Special-case detection</div>
+              <div class="pl-bd">Referential → history lookup. Multi-product → flag &amp; warn.</div>
+              <div class="pl-tags"><span class="pl-tag y">isReferential</span><span class="pl-tag y">isMultiProduct</span></div>
+            </div>
+          </div>
+          <div class="pl-arrow"><div class="pl-arrow-badge">▼</div><div class="pl-arrow-spacer"></div></div>
+
+          <div class="pl-stage">
+            <div class="pl-num">3</div>
+            <div class="pl-box" style="flex:1">
+              <div class="pl-bt">Text normalization</div>
+              <div class="pl-bd">normalization.js (shared with build.js) — expand abbreviations, lowercase, strip punctuation.</div>
+              <div class="pl-tags"><span class="pl-tag">SHCS → socket head cap screw</span><span class="pl-tag">HDG → hot dip galvanized</span></div>
+            </div>
+          </div>
+          <div class="pl-arrow"><div class="pl-arrow-badge">▼</div><div class="pl-arrow-spacer"></div></div>
+
+          <div class="pl-stage">
+            <div class="pl-num">4</div>
+            <div class="pl-box" style="flex:1">
+              <div class="pl-bt">Attribute extraction</div>
+              <div class="pl-bd">Parses 7 structured fields from the normalized query.</div>
+              <div class="pl-tags"><span class="pl-tag">threadSpec</span><span class="pl-tag">system</span><span class="pl-tag">length</span><span class="pl-tag">productType</span><span class="pl-tag">material</span><span class="pl-tag">coating</span></div>
+            </div>
+          </div>
+          <div class="pl-arrow"><div class="pl-arrow-badge">▼</div><div class="pl-arrow-spacer"></div></div>
+
+          <div class="pl-stage">
+            <div class="pl-num">5</div>
+            <div class="pl-box" style="flex:1">
+              <div class="pl-bt">Metric / imperial filter</div>
+              <div class="pl-bd">Metric queries match only metric SKUs. Imperial only matches imperial. Hard namespace separation — cuts pool ~50%.</div>
+              <div class="pl-tags"><span class="pl-tag">M-prefix = metric</span><span class="pl-tag">fractional TPI = imperial</span></div>
+            </div>
+          </div>
+          <div class="pl-arrow"><div class="pl-arrow-badge">▼</div><div class="pl-arrow-spacer"></div></div>
+
+          <div class="pl-stage">
+            <div class="pl-num">6</div>
+            <div class="pl-box" style="flex:1">
+              <div class="pl-bt">BM25 retrieval</div>
+              <div class="pl-bd">Scores filtered pool against normalized query tokens. Returns top 15 candidates. Index built once at startup from data.js.</div>
+              <div class="pl-tags"><span class="pl-tag">k1=1.5  b=0.75</span><span class="pl-tag">top 15 candidates</span><span class="pl-tag y">← index from data.js</span></div>
+            </div>
+          </div>
+          <div class="pl-arrow"><div class="pl-arrow-badge">▼</div><div class="pl-arrow-spacer"></div></div>
+
+          <div class="pl-stage">
+            <div class="pl-num">7</div>
+            <div class="pl-box" style="flex:1">
+              <div class="pl-bt">Weighted re-ranking</div>
+              <div class="pl-bd">BM25 (45%) + attribute fit (35%) + history prior (15%). Hard type disqualifier drops explicit conflicts to 0.02.</div>
+              <div class="pl-tags"><span class="pl-tag">bm25 · 0.45</span><span class="pl-tag y">attribute · 0.35</span><span class="pl-tag g">history · 0.15</span><span class="pl-tag r">type conflict → 0.02</span></div>
+            </div>
+          </div>
+          <div class="pl-arrow"><div class="pl-arrow-badge">▼</div><div class="pl-arrow-spacer"></div></div>
+
+          <div class="pl-stage">
+            <div class="pl-num d">8</div>
+            <div class="pl-box gn" style="flex:1">
+              <div class="pl-bt">Confidence + decision routing</div>
+              <div class="pl-bd">High / Medium / Low classification. Auto-Match only when score ≥ 0.65 and margin ≥ 0.10 and no unsupported signals.</div>
+              <div class="pl-tags"><span class="pl-tag g">Auto-match</span><span class="pl-tag r">Review Required</span><span class="pl-tag">unsupportedSignals</span></div>
+            </div>
+          </div>
+          <div class="pl-arrow"><div class="pl-arrow-badge">▼</div><div class="pl-arrow-spacer"></div></div>
+
+          <div class="pl-stage">
+            <div class="pl-num y">→</div>
+            <div class="pl-box cr" style="flex:1">
+              <div class="pl-bt">Output</div>
+              <div class="pl-bd">Top 3 result cards · confidence badges · score bars · rationale · history comparison · decision panel</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Scoring model -->
+      <div class="pl-score" style="margin-top: 20px;">
+        <div class="pl-score-hd">Scoring model · Final = BM25 (45%) + Attribute (35%) + History (15%)</div>
+        <div class="pl-w-row"><div class="pl-w-name">BM25 / lexical</div><div class="pl-w-track"><div class="pl-w-fill" style="width:45%"></div></div><div class="pl-w-pct">45%</div></div>
+        <div class="pl-w-row"><div class="pl-w-name">Attribute fit</div><div class="pl-w-track"><div class="pl-w-fill" style="width:35%"></div></div><div class="pl-w-pct">35%</div></div>
+        <div class="pl-w-row"><div class="pl-w-name">History prior</div><div class="pl-w-track"><div class="pl-w-fill" style="width:15%"></div></div><div class="pl-w-pct">15%</div></div>
+        <div class="pl-conf-row">
+          <div class="pl-conf pl-c-h"><div class="label">High</div><div class="rule">score ≥ 0.65<br>margin ≥ 0.10</div></div>
+          <div class="pl-conf pl-c-m"><div class="label">Medium</div><div class="rule">score ≥ 0.40</div></div>
+          <div class="pl-conf pl-c-l"><div class="label">Low</div><div class="rule">score &lt; 0.40</div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ── 8. HOW AI WAS USED ─────────────────────── -->
+  <section class="about-section" id="ai-usage">
+    <p class="eyebrow">08 — The build process</p>
+    <h2 class="s-heading">HOW <span class="hl">AI WAS USED</span></h2>
+    <p class="s-lede">I didn't start with a prompt. I started with my own thinking — then brought in the right tool for each phase of the build.</p>
+
+    <div class="ai-flow">
+
+      <div class="ai-phase">
+        <div class="ai-phase-top">
+          <div class="ai-dot you">Me</div>
+          <div class="ai-connector"></div>
+        </div>
+        <div class="ai-body">
+          <span class="ai-tool-badge" style="background:var(--accent-yellow);">Own thinking</span>
+          <div class="ai-phase-title">Framing first</div>
+          <div class="ai-phase-desc">Wrote the problem statement, leading questions, and first-pass edge cases before opening any AI tool. Wanted my own mental model so I'd know when the AI was wrong.</div>
+        </div>
+      </div>
+
+      <div class="ai-phase">
+        <div class="ai-phase-top">
+          <div class="ai-dot cl">C</div>
+          <div class="ai-connector"></div>
+        </div>
+        <div class="ai-body">
+          <span class="ai-tool-badge" style="background:#dbeafe;">Claude</span>
+          <div class="ai-phase-title">Senior engineer review</div>
+          <div class="ai-phase-desc">Prompted Claude to act as a senior engineer reviewing the approach. Workshopped algorithm choices, edge cases, scoring weights, and the confidence model through structured Q&amp;A — not code generation.</div>
+        </div>
+      </div>
+
+      <div class="ai-phase">
+        <div class="ai-phase-top">
+          <div class="ai-dot cl">C</div>
+          <div class="ai-connector"></div>
+        </div>
+        <div class="ai-body">
+          <span class="ai-tool-badge" style="background:#dbeafe;">Claude</span>
+          <div class="ai-phase-title">Writing the spec</div>
+          <div class="ai-phase-desc">Had Claude write a comprehensive one-shot prompt spec — a contract document covering every function signature, input/output shape, constant, and edge-case rule — for Cursor to build from. The spec was the artifact, not the code.</div>
+        </div>
+      </div>
+
+      <div class="ai-phase">
+        <div class="ai-phase-top">
+          <div class="ai-dot cur">Cu</div>
+          <div class="ai-connector"></div>
+        </div>
+        <div class="ai-body">
+          <span class="ai-tool-badge" style="background:#f3e8ff;">Cursor</span>
+          <div class="ai-phase-title">Logic layer build</div>
+          <div class="ai-phase-desc">Cursor built build.js, normalization.js, and matcher.js from the spec. Because the spec was tight enough, it mostly worked on the first pass. Targeted fixes for a few edge cases (lag screw ordering, bare diameter indexing, metric length parsing).</div>
+        </div>
+      </div>
+
+      <div class="ai-phase">
+        <div class="ai-phase-top">
+          <div class="ai-dot cl">C</div>
+          <div class="ai-connector"></div>
+        </div>
+        <div class="ai-body">
+          <span class="ai-tool-badge" style="background:#dbeafe;">Claude</span>
+          <div class="ai-phase-title">UI layer build</div>
+          <div class="ai-phase-desc">Returned to Claude for app.js, index.html, and styles.css. The matcher API contract was already defined, so Claude could wire the UI cleanly. Gave it a specific visual brief (neobrutalism, Space Grotesk, no Bootstrap defaults).</div>
+        </div>
+      </div>
+
+      <div class="ai-phase">
+        <div class="ai-phase-top">
+          <div class="ai-dot cdx">Cx</div>
+          <div class="ai-connector"></div>
+        </div>
+        <div class="ai-body">
+          <span class="ai-tool-badge" style="background:#dcfce7;">Codex</span>
+          <div class="ai-phase-title">Test suite</div>
+          <div class="ai-phase-desc">Used Codex to write the unit tests. Fed it the matcher API shape and the edge cases I'd already identified in pass 1 and 2. It generated comprehensive coverage for the cases I cared about.</div>
+        </div>
+      </div>
+
+      <div class="ai-phase">
+        <div class="ai-phase-top">
+          <div class="ai-dot man">Me</div>
+        </div>
+        <div class="ai-body">
+          <span class="ai-tool-badge">Manual</span>
+          <div class="ai-phase-title">Final verify</div>
+          <div class="ai-phase-desc">Ran all tests, opened the app, worked through the demo query sequence myself. Spotted a few remaining edge cases in the live UI and patched them directly. Nothing shipped without me actually using it.</div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+
+  <!-- ── 9. REFINEMENTS ─────────────────────────── -->
+  <section class="about-section" id="refinements">
+    <p class="eyebrow">09 — What changed after the first build</p>
+    <h2 class="s-heading">ENGINEERING <span class="hl">REFINEMENTS</span></h2>
+    <p class="s-lede">These are the things I discovered when the system was running on real queries that I hadn't anticipated from the design alone.</p>
+
+    <div class="ref-list">
+      <div class="ref-item">
+        <div class="ref-header">
+          <div class="ref-badge">Bug fix</div>
+          <div class="ref-title">Lag screw vs. hex cap screw — pattern ordering collision</div>
+        </div>
+        <div class="ref-body">The catalog description "HX HD LAG SCR" was matching as a hex cap screw because the "HX HD" pattern fired before the lag screw pattern. Fixed by moving all lag screw patterns to the top of the PRODUCT_PATTERNS array — priority matters in this kind of regex dispatch.</div>
+      </div>
+      <div class="ref-item">
+        <div class="ref-header">
+          <div class="ref-badge">Bug fix</div>
+          <div class="ref-title">BM25 token mismatch — "1/2 rod 6 foot" returning wrong result</div>
+        </div>
+        <div class="ref-body">Two sub-problems: "foot" wasn't expanding to "ft" so BM25 never matched the catalog token "6ft". And "1/2" bare diameter never matched catalog token "1/2-13". Fixed by adding feet/foot expansion to ABBREV_PAIRS and indexing bare diameter separately at build time.</div>
+      </div>
+      <div class="ref-item">
+        <div class="ref-header">
+          <div class="ref-badge">Fix</div>
+          <div class="ref-title">Attribute penalty too weak — flat washer ranking above hex nut</div>
+        </div>
+        <div class="ref-body">The original 0.5x type-conflict multiplier wasn't strong enough — thread-spec overlap was overcoming it. Replaced the multiplier with a hard disqualifier that returns 0.02 when product types explicitly conflict. Solved the problem cleanly.</div>
+      </div>
+      <div class="ref-item">
+        <div class="ref-header">
+          <div class="ref-badge">Architecture</div>
+          <div class="ref-title">Normalization extracted to shared module</div>
+        </div>
+        <div class="ref-body">Originally normalization lived in both build.js and matcher.js as duplicated code. This created a class of bugs where a new abbreviation added in one place but not the other would cause query/catalog token mismatches. Extracted to normalization.js — one source of truth, used by both.</div>
+      </div>
+      <div class="ref-item">
+        <div class="ref-header">
+          <div class="ref-badge">Feature</div>
+          <div class="ref-title">Decision routing added — Auto-Match vs. Review Required</div>
+        </div>
+        <div class="ref-body">The original spec returned confidence labels but didn't make an explicit routing decision. Added the decision object (route, label, message, reasons) because I realized the UI needed to communicate clearly whether the system was confident enough to proceed or whether a human should review. This also made the score breakdown more meaningful.</div>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ── 10. TRADEOFFS ──────────────────────────── -->
+  <section class="about-section" id="tradeoffs">
+    <p class="eyebrow">10 — Honest accounting</p>
+    <h2 class="s-heading">TRADEOFFS <span class="hl">AND LIMITS</span></h2>
+    <p class="s-lede">These are the deliberate simplifications I made for the take-home, and what a production version would look like instead.</p>
+
+    <div class="tradeoff-split">
+      <div class="tc-col">
+        <div class="tc-head left">This prototype — deliberately simplified</div>
+        <div class="tc-body left">
+          <div class="tc-row"><div class="tc-icon">⚡</div><div>BM25 + attribute rerank only. No embedding tier. Fast, explainable, and easy to defend in a live conversation.</div></div>
+          <div class="tc-row"><div class="tc-icon">⚡</div><div>Heuristic multi-product detection. Works on "and/plus/comma" separators and plural product types. Won't catch everything.</div></div>
+          <div class="tc-row"><div class="tc-icon">⚡</div><div>Mock review handoff. "Select SKU" moves to a mock panel — no real ERP, inventory, or order-submission backend.</div></div>
+          <div class="tc-row"><div class="tc-icon">⚡</div><div>Static data layer. data.js is regenerated from CSVs. No live inventory sync or real-time catalog updates.</div></div>
+          <div class="tc-row"><div class="tc-icon">⚡</div><div>Ambiguous bare metric lengths (e.g. "M8 x 1" without unit) are still inherently ambiguous — the system surfaces this rather than guessing.</div></div>
+        </div>
+      </div>
+      <div class="tc-col">
+        <div class="tc-head right">Production — what I'd add next</div>
+        <div class="tc-body">
+          <div class="tc-row"><div class="tc-icon">🔜</div><div>Hybrid retrieval: BM25 + embedding similarity with RRF fusion. Better at synonyms and semantic gaps that normalization misses.</div></div>
+          <div class="tc-row"><div class="tc-icon">🔜</div><div>Full intent parsing for multi-product queries. NLP-based product type extraction rather than heuristic keyword counting.</div></div>
+          <div class="tc-row"><div class="tc-icon">🔜</div><div>Real order handoff — ERP / inventory API integration. The routing decision the system makes would trigger an actual workflow.</div></div>
+          <div class="tc-row"><div class="tc-icon">🔜</div><div>Feedback loop. Reviewed edge cases become labeled training data. The system improves from every human correction.</div></div>
+          <div class="tc-row"><div class="tc-icon">🔜</div><div>Customer history from a live database rather than a pre-baked CSV. Real-time recency decay and profile updates.</div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<script>
+  // Sidebar scroll spy
+  const sections = document.querySelectorAll('.about-section');
+  const links = document.querySelectorAll('.nav-link');
+
+  function onScroll() {
+    let current = '';
+    sections.forEach(s => {
+      if (window.scrollY >= s.offsetTop - 80) current = s.id;
+    });
+    links.forEach(l => {
+      l.classList.toggle('active', l.getAttribute('href') === '#' + current);
+    });
+  }
+
+  window.addEventListener('scroll', onScroll, { passive: true });
+  onScroll();
+</script>
+
+</body>
+</html>

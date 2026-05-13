@@ -80,6 +80,7 @@ test('match returns results (≤3), flags, queryAttrs, margin', () => {
   assert.ok(r.flags && typeof r.flags.lowConfidence === 'boolean');
   assert.ok(typeof r.margin === 'number');
   assert.ok(r.queryAttrs);
+  assert.ok(r.decision && typeof r.decision.route === 'string');
 });
 
 test('each result has required fields', () => {
@@ -91,6 +92,8 @@ test('each result has required fields', () => {
   assert.ok(x.scores && typeof x.scores.final === 'number');
   assert.ok(['High', 'Medium', 'Low'].includes(x.confidenceLabel));
   assert.ok(typeof x.confidencePct === 'number');
+  assert.ok(typeof x.rationale === 'string');
+  assert.ok(Array.isArray(x.uncertainty));
 });
 
 // ─── Metric / imperial isolation ─────────────────────────────────────────────
@@ -137,6 +140,12 @@ test('SHCS imperial abbreviation resolves', () => {
   assert.equal(r.results[0].attrs.productType, 'socket head cap screw');
 });
 
+test('hex bolt synonym resolves to hex cap screw', () => {
+  const r = match('3/8-16 x 4 hex bolt');
+  assert.ok(r.results.length >= 1);
+  assert.equal(r.results[0].attrs.productType, 'hex cap screw');
+});
+
 test('HHB tap-style description', () => {
   const r = match('HHB 3/4-10 x 5/8');
   assert.ok(r.results.some((x) => x.attrs.productType === 'hex cap screw'));
@@ -152,12 +161,32 @@ test('implicit imperial hex cap when only dimensions', () => {
   assert.equal(r.queryAttrs.productType, 'hex cap screw');
 });
 
+test('high-confidence exact query routes to auto-match', () => {
+  const r = match('1/4-20 x 3/4 hex cap screw zinc');
+  assert.equal(r.decision.route, 'auto-match');
+});
+
+test('underspecified generic query routes to review-required', () => {
+  const r = match('washer');
+  assert.equal(r.decision.route, 'review-required');
+});
+
+test('unsupported specification is surfaced for review', () => {
+  const r = match('1/4-20 x 3/4 hex cap screw zinc grade 8');
+  assert.ok(r.unsupportedSignals.length >= 1);
+  assert.ok(
+    r.unsupportedSignals.some((item) => item.label === 'Grade')
+  );
+  assert.notEqual(r.decision.route, 'auto-match');
+});
+
 // ─── Referential ─────────────────────────────────────────────────────────────
 
 test('referential with customer returns ≤3 history SKUs', () => {
   const r = match('same as last time', 'CUST-001');
   assert.equal(r.flags.isReferential, true);
   assert.ok(r.results.length >= 1 && r.results.length <= 3);
+  assert.ok(r.historyComparison);
 });
 
 test('referential without customer falls through to normal match', () => {
@@ -269,6 +298,12 @@ test('thin-history customer gets zero history boost', () => {
 
   customers['CUST-001'] = backup;
   reloadMatcher();
+});
+
+test('history comparison is exposed when a customer is selected', () => {
+  const r = match('1/4-20 x 3/4 hex cap screw zinc', 'CUST-001');
+  assert.ok(r.historyComparison);
+  assert.ok(typeof r.historyComparison.summary === 'string');
 });
 
 // ─── Low-confidence nonsense ─────────────────────────────────────────────────

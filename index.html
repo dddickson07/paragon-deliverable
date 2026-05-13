@@ -39,6 +39,9 @@
               Map messy industrial requests to SKUs — top 3 ranked matches with explainable scores
               and customer-history context (take-home demo).
             </p>
+            <p style="margin-top:10px;">
+              <a href="about.html" style="font-size:0.8rem;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--ink);text-decoration:none;border:2px solid var(--ink);padding:5px 12px;display:inline-block;" onmouseover="this.style.background='var(--ink)';this.style.color='var(--card)'" onmouseout="this.style.background='';this.style.color='var(--ink)'">Design process →</a>
+            </p>
           </div>
         </div>
       </header>
@@ -72,7 +75,13 @@
 
       <div id="status-area" class="status-area" aria-live="polite"></div>
 
+      <section id="decision-panel" class="decision-panel hidden" aria-live="polite"></section>
+
       <div id="flags-banner" class="flags-banner"></div>
+
+      <div id="advisory-panel" class="advisory-panel hidden"></div>
+
+      <div id="history-panel" class="history-panel hidden"></div>
 
       <section id="results-section" class="results-section">
         <div id="empty-state" class="empty-state">
@@ -80,6 +89,8 @@
         </div>
         <div id="results-list" class="results-list hidden"></div>
       </section>
+
+      <section id="selection-panel" class="selection-panel hidden" aria-live="polite"></section>
     </div>
 
     <script src="data.js"></script>
