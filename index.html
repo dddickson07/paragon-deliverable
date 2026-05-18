@@ -68,6 +68,32 @@
           placeholder="e.g. 1/4-20 x 3/4 hex cap screw zinc"
         ></textarea>
 
+        <details class="llm-settings" id="llm-settings">
+          <summary class="llm-settings-toggle">Abbreviation expansion</summary>
+          <div class="llm-settings-body">
+            <label class="field-label" for="llm-provider">Provider</label>
+            <select id="llm-provider" class="input-control" aria-label="LLM provider">
+              <option value="groq">Groq — free tier (llama-3.1-8b-instant)</option>
+              <option value="openai">OpenAI (gpt-4o-mini)</option>
+            </select>
+            <label class="field-label" for="llm-api-key">API key</label>
+            <input
+              id="llm-api-key"
+              type="password"
+              class="input-control"
+              placeholder="Enter API key…"
+              autocomplete="off"
+              spellcheck="false"
+              aria-label="API key for LLM abbreviation expansion"
+            />
+            <p class="llm-settings-note">
+              Key goes directly to the selected provider — never stored or proxied.
+              Leave blank to use the built-in dictionary only.
+              Get a free Groq key at <a href="https://console.groq.com/keys" target="_blank" rel="noopener noreferrer">console.groq.com/keys</a>.
+            </p>
+          </div>
+        </details>
+
         <button type="submit" id="match-button" class="btn-primary">Match</button>
       </form>
 

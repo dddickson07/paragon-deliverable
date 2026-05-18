@@ -25,6 +25,8 @@
   const emptyState = document.getElementById("empty-state");
   const resultsList = document.getElementById("results-list");
   const selectionPanel = document.getElementById("selection-panel");
+  const llmProviderSelect = document.getElementById("llm-provider");
+  const llmApiKeyInput = document.getElementById("llm-api-key");
 
   /** @type {{ id: string, name: string }[]} */
   let allCustomers = [];
@@ -375,15 +377,91 @@
     selectionPanel.classList.remove("hidden");
   }
 
-  function setLoading(isLoading) {
+  function setLoading(isLoading, message) {
     statusArea.innerHTML = "";
     if (isLoading) {
       const p = document.createElement("p");
       p.className = "status-loading";
-      p.textContent = "Matching…";
+      p.textContent = message || "Matching…";
       statusArea.appendChild(p);
     }
     matchButton.disabled = isLoading;
+  }
+
+  function renderExpandedNote(original, expanded) {
+    const noteId = "llm-expand-note";
+    const existing = document.getElementById(noteId);
+    if (existing) existing.remove();
+
+    if (!expanded || expanded.trim().toLowerCase() === original.trim().toLowerCase()) return;
+
+    const note = document.createElement("div");
+    note.id = noteId;
+    note.className = "llm-expand-note";
+    note.innerHTML = `
+      <span class="llm-expand-label">Expanded:</span>
+      <span class="llm-expand-text">${escapeHtml(expanded)}</span>
+    `;
+    // Insert right after the parsed-row
+    parsedRow.parentNode.insertBefore(note, parsedRow.nextSibling);
+  }
+
+  const LLM_PROVIDERS = {
+    groq: {
+      url: "https://api.groq.com/openai/v1/chat/completions",
+      model: "llama-3.1-8b-instant",
+      label: "Groq",
+    },
+    openai: {
+      url: "https://api.openai.com/v1/chat/completions",
+      model: "gpt-4o-mini",
+      label: "OpenAI",
+    },
+  };
+
+  async function expandQueryWithLLM(rawQuery, apiKey, providerKey) {
+    const provider = LLM_PROVIDERS[providerKey] || LLM_PROVIDERS.groq;
+    try {
+      const resp = await fetch(provider.url, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey.trim()}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: provider.model,
+          messages: [
+            {
+              role: "system",
+              content:
+                "You are an industrial fastener expert. Expand any abbreviated or shorthand terms in the user's product query to their full form (e.g. HHCS → hex head cap screw, HDG → hot dip galvanized, SS → stainless steel, GR5 → grade 5, TX → torx, BHCS → button head cap screw). Return ONLY the expanded query text, with no explanation, no quotes, and no extra words. If nothing needs expanding, return the original text exactly.",
+            },
+            {
+              role: "user",
+              content: rawQuery,
+            },
+          ],
+          max_tokens: 150,
+          temperature: 0,
+        }),
+      });
+
+      if (!resp.ok) {
+        const errBody = await resp.json().catch(() => ({}));
+        throw new Error(errBody.error?.message || `${provider.label} API error ${resp.status}`);
+      }
+
+      const data = await resp.json();
+      const expanded = data.choices?.[0]?.message?.content?.trim();
+      return {
+        expanded: expanded || rawQuery,
+        didExpand: !!expanded && expanded.toLowerCase() !== rawQuery.toLowerCase(),
+        provider: provider.label,
+      };
+    } catch (err) {
+      console.warn(`[LLM expand:${provider.label}] failed, falling back to original query:`, err.message);
+      return { expanded: rawQuery, didExpand: false, error: err.message, provider: provider.label };
+    }
   }
 
   function showError(message) {
@@ -404,21 +482,26 @@
     runMatch();
   });
 
-  function runMatch() {
+  async function runMatch() {
     clearError();
-    const query = queryInput.value.trim();
+    const rawQuery = queryInput.value.trim();
     const customerId = customerSelect.value || null;
+    const apiKey = llmApiKeyInput ? llmApiKeyInput.value : "";
+    const providerKey = llmProviderSelect ? llmProviderSelect.value : "groq";
 
     renderParsedAttrs(null);
     renderFlags(null);
     renderDecision(null);
     renderAdvisories(null);
     renderHistoryPanel(null);
+    // Clear any previous LLM expansion note
+    const prevNote = document.getElementById("llm-expand-note");
+    if (prevNote) prevNote.remove();
     latestMatch = null;
     selectedSku = null;
     renderSelectionPanel();
 
-    if (!query) {
+    if (!rawQuery) {
       setLoading(false);
       emptyState.classList.remove("hidden");
       emptyState.textContent =
@@ -437,7 +520,27 @@
     emptyState.classList.add("hidden");
     resultsList.classList.remove("hidden");
     resultsList.innerHTML = "";
-    setLoading(true);
+
+    // --- LLM expansion step ---
+    let query = rawQuery;
+    if (apiKey && apiKey.trim()) {
+      setLoading(true, "Expanding abbreviations…");
+      const { expanded, didExpand, error } = await expandQueryWithLLM(rawQuery, apiKey, providerKey);
+      query = expanded;
+      if (error) {
+        // Show a soft warning but continue — pipeline runs on original
+        const warnEl = document.createElement("div");
+        warnEl.className = "llm-expand-warn";
+        warnEl.textContent = `⚠ AI expansion unavailable (${error}). Using original query.`;
+        statusArea.appendChild(warnEl);
+      }
+      if (didExpand) {
+        // Store expanded text so renderExpandedNote can use it after attrs render
+        renderExpandedNote(rawQuery, expanded);
+      }
+    }
+
+    setLoading(true, "Matching…");
 
     window.requestAnimationFrame(() => {
       try {

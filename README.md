@@ -10,6 +10,7 @@ The goal of the prototype is not "perfect SKU selection." It is a defensible mat
 - Top-3 ranked results with confidence labels and score breakdowns
 - Searchable customer selection with order-history personalization
 - Explicit `Auto-Match` vs `Review Required` routing
+- Optional GPT-4o-mini preprocessing to expand novel abbreviations before the pipeline runs
 - Edge-case handling for shorthand, vague queries, unsupported specs, multi-product requests, and referential requests like "same as last time"
 
 ## Quick Start
@@ -95,7 +96,7 @@ The project is split cleanly by responsibility:
 
 ## Tradeoffs And Limits
 
-- No embeddings or LLM retrieval tier; this is a deliberate simplicity choice for the take-home
+- LLM preprocessing is optional and requires a user-supplied OpenAI API key; without it the pipeline uses only the built-in abbreviation dictionary
 - Review handoff is mocked; there is no ERP or order-submission backend
 - Some ambiguous phrasing still requires operator review by design
 - Multi-product detection is heuristic rather than full intent parsing

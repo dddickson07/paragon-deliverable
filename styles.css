@@ -328,6 +328,102 @@ body {
   border-left-color: var(--medium);
 }
 
+/* ── LLM settings panel ─────────────────────────────────────────── */
+
+.llm-settings {
+  margin-top: 12px;
+  border: 2px solid var(--ink);
+  border-radius: 2px;
+  background: var(--card);
+}
+
+.llm-settings-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+
+.llm-settings-toggle::-webkit-details-marker {
+  display: none;
+}
+
+.llm-settings-toggle::before {
+  content: "▶";
+  font-size: 0.65rem;
+  transition: transform 0.12s ease;
+}
+
+details[open] .llm-settings-toggle::before {
+  transform: rotate(90deg);
+}
+
+.llm-settings-toggle:hover {
+  background: var(--bg);
+}
+
+.llm-settings-body {
+  padding: 4px 14px 14px;
+  border-top: 2px solid var(--ink);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.llm-settings-note {
+  margin: 4px 0 0;
+  font-size: 0.78rem;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+.llm-settings-note a {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+/* LLM expansion result note */
+
+.llm-expand-note {
+  margin-top: 10px;
+  padding: 10px 14px;
+  border: 2px solid var(--ink);
+  border-left: 4px solid var(--accent-yellow);
+  background: #fffde6;
+  border-radius: 2px;
+  font-size: 0.88rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: baseline;
+}
+
+.llm-expand-label {
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.llm-expand-text {
+  font-family: ui-monospace, "Cascadia Code", monospace;
+  word-break: break-word;
+}
+
+.llm-expand-warn {
+  font-size: 0.82rem;
+  color: var(--muted);
+  padding: 6px 0;
+  font-weight: 500;
+}
+
+/* ── Results section ─────────────────────────────────────────────── */
+
 .results-section {
   margin-top: 24px;
 }
